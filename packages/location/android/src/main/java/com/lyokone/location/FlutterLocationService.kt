@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import java.util.Calendar
 
 const val kDefaultChannelName: String = "Location background service"
 const val kDefaultNotificationTitle: String = "Location background service running"
@@ -83,11 +84,16 @@ class BackgroundNotification(
         val iconId = getDrawableId(options.iconName).let {
             if (it != 0) it else getDrawableId(kDefaultNotificationIconName)
         }
+
+        val calendar = Calendar.getInstance()
+
         builder = builder
                 .setContentTitle(options.title)
                 .setSmallIcon(iconId)
                 .setContentText(options.subtitle)
                 .setSubText(options.description)
+                .setShowWhen(true)
+                .setWhen(calendar.timeInMillis)
 
         builder = if (options.color != null) {
             builder.setColor(options.color).setColorized(true)
