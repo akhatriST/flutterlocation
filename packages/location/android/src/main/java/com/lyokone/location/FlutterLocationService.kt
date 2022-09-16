@@ -94,6 +94,7 @@ class BackgroundNotification(
                 .setSubText(options.description)
                 .setShowWhen(true)
                 .setWhen(calendar.timeInMillis)
+                .setOngoing(true)
 
         builder = if (options.color != null) {
             builder.setColor(options.color).setColorized(true)
@@ -200,7 +201,7 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
     }
 
     fun checkBackgroundPermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        /*return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             activity?.let {
                 val locationPermissionState = ActivityCompat.checkSelfPermission(it,
                         Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -208,11 +209,13 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
             } ?: throw ActivityNotFoundException()
         } else {
             location?.checkPermissions() ?: false
-        }
+        }*/
+
+        return location?.checkPermissions() ?: false
     }
 
     fun requestBackgroundPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             activity?.let {
                 ActivityCompat.requestPermissions(it, arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -224,7 +227,12 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
             location?.requestPermissions()
             // result passed to Location reference here won't be needed
             this.result = null
-        }
+        }*/
+
+        location?.result = this.result
+        location?.requestPermissions()
+        // result passed to Location reference here won't be needed
+        this.result = null
     }
 
     fun isInForegroundMode(): Boolean = isForeground
