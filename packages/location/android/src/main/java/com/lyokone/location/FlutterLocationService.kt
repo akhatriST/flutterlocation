@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -133,6 +134,7 @@ class BackgroundNotification(
 class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResultListener {
     companion object {
         private const val TAG = "FlutterLocationService"
+        private const val WAKELOCK_TAG = "FlutterLocationService::WAKE_LOCK"
 
         private const val REQUEST_PERMISSIONS_REQUEST_CODE: Int = 641
 
@@ -243,6 +245,8 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
         } else {
             Log.d(TAG, "Start service in foreground mode.")
 
+            acquireLock()
+
             val notification = backgroundNotification!!.build()
             startForeground(ONGOING_NOTIFICATION_ID, notification)
 
@@ -252,9 +256,31 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
 
     fun disableBackgroundMode() {
         Log.d(TAG, "Stop service in foreground.")
+
+        releaseLock()
+
         stopForeground(true)
 
         isForeground = false
+    }
+
+    private fun acquireLock() {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+            newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }
+    }
+
+    private fun releaseLock() {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+            newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
+                if (isHeld) {
+                    release()
+                }
+            }
+        }
     }
 
     fun changeNotificationOptions(options: NotificationOptions): Map<String, Any>? {
