@@ -97,7 +97,7 @@
     } else if ([call.method isEqualToString:@"enableBackgroundMode"]) {
         BOOL enable = [call.arguments[@"enable"] boolValue];
         if (self.applicationHasLocationBackgroundMode) {
-            self.clLocationManager.activityType = CLActivityType.fitness;
+            self.clLocationManager.activityType = CLActivityTypeFitness;
             self.clLocationManager.pausesLocationUpdatesAutomatically = false;
             if (@available(iOS 9.0, *)) {
                 self.clLocationManager.allowsBackgroundLocationUpdates = enable;
