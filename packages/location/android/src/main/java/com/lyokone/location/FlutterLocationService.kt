@@ -127,7 +127,6 @@ class BackgroundNotification(
 
     fun build(): Notification {
         updateChannel(options.channelName)
-        updateNotification(options, true)
         return builder.build()
     }
 }
