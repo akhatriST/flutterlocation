@@ -70,7 +70,7 @@ class BackgroundNotification(
             val channel = NotificationChannel(
                     channelId,
                     channelName,
-                    NotificationManager.IMPORTANCE_NONE
+                    NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = Notification.VISIBILITY_PRIVATE
             }
