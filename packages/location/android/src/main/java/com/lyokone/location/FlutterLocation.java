@@ -9,14 +9,17 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.OnNmeaMessageListener;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.SparseArray;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
@@ -49,11 +52,8 @@ public class FlutterLocation
 
     private static final int GPS_ENABLE_REQUEST = 0x1001;
 
-    public FusedLocationProviderClient mFusedLocationClient;
-    private SettingsClient mSettingsClient;
-    private LocationRequest mLocationRequest;
-    private LocationSettingsRequest mLocationSettingsRequest;
-    public LocationCallback mLocationCallback;
+    private LocationManager locationManager;
+    public LocationListener mLocationListener;
 
     @TargetApi(Build.VERSION_CODES.N)
     private OnNmeaMessageListener mMessageListener;
@@ -63,7 +63,6 @@ public class FlutterLocation
     // Parameters of the request
     private long updateIntervalMilliseconds = 5000;
     private long fastestUpdateIntervalMilliseconds = updateIntervalMilliseconds / 2;
-    private Integer locationAccuracy = LocationRequest.PRIORITY_HIGH_ACCURACY;
     private float distanceFilter = 0f;
 
     public EventSink events;
@@ -77,19 +76,6 @@ public class FlutterLocation
     // Store result until a location is getting resolved
     public Result getLocationResult;
 
-    private final LocationManager locationManager;
-
-    public SparseArray<Integer> mapFlutterAccuracy = new SparseArray<Integer>() {
-        {
-            put(0, LocationRequest.PRIORITY_NO_POWER);
-            put(1, LocationRequest.PRIORITY_LOW_POWER);
-            put(2, LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-            put(3, LocationRequest.PRIORITY_HIGH_ACCURACY);
-            put(4, LocationRequest.PRIORITY_HIGH_ACCURACY);
-            put(5, LocationRequest.PRIORITY_LOW_POWER);
-        }
-    };
-
     FlutterLocation(Context applicationContext, @Nullable Activity activity) {
         this.activity = activity;
         this.locationManager = (LocationManager) applicationContext.getSystemService(Context.LOCATION_SERVICE);
@@ -98,18 +84,13 @@ public class FlutterLocation
     void setActivity(@Nullable Activity activity) {
         this.activity = activity;
         if (this.activity != null) {
-            mFusedLocationClient = LocationServices.getFusedLocationProviderClient(activity);
-            mSettingsClient = LocationServices.getSettingsClient(activity);
-
-            createLocationCallback();
-            createLocationRequest();
-            buildLocationSettingsRequest();
+            createLocationListener();
         } else {
-            if (mFusedLocationClient != null) {
-                mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+            if (locationManager != null) {
+                locationManager.removeUpdates(mLocationListener);
             }
-            mFusedLocationClient = null;
-            mSettingsClient = null;
+            locationManager = null;
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && locationManager != null) {
                 locationManager.removeNmeaListener(mMessageListener);
                 mMessageListener = null;
@@ -189,14 +170,11 @@ public class FlutterLocation
 
     public void changeSettings(Integer newLocationAccuracy, Long updateIntervalMilliseconds,
                                Long fastestUpdateIntervalMilliseconds, Float distanceFilter) {
-        this.locationAccuracy = newLocationAccuracy;
         this.updateIntervalMilliseconds = updateIntervalMilliseconds;
         this.fastestUpdateIntervalMilliseconds = fastestUpdateIntervalMilliseconds;
         this.distanceFilter = distanceFilter;
 
-        createLocationCallback();
-        createLocationRequest();
-        buildLocationSettingsRequest();
+        createLocationListener();
         startRequestingLocation();
     }
 
@@ -214,16 +192,15 @@ public class FlutterLocation
     /**
      * Creates a callback for receiving location events.
      */
-    private void createLocationCallback() {
-        if (mLocationCallback != null) {
-            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
-            mLocationCallback = null;
+    private void createLocationListener() {
+        if (mLocationListener != null) {
+            locationManager.removeUpdates(mLocationListener);
+            mLocationListener = null;
         }
-        mLocationCallback = new LocationCallback() {
+
+        mLocationListener = new LocationListener() {
             @Override
-            public void onLocationResult(LocationResult locationResult) {
-                super.onLocationResult(locationResult);
-                Location location = locationResult.getLastLocation();
+            public void onLocationChanged(@NonNull Location location) {
                 HashMap<String, Object> loc = new HashMap<>();
                 loc.put("latitude", location.getLatitude());
                 loc.put("longitude", location.getLongitude());
@@ -273,8 +250,8 @@ public class FlutterLocation
                 if (events != null) {
                     events.success(loc);
                 } else {
-                    if (mFusedLocationClient != null) {
-                        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+                    if (locationManager != null) {
+                        locationManager.removeUpdates(mLocationListener);
                     }
                 }
             }
@@ -296,30 +273,6 @@ public class FlutterLocation
                 }
             };
         }
-    }
-
-    /**
-     * Sets up the location request. Android has two location request settings:
-     */
-    private void createLocationRequest() {
-        mLocationRequest = LocationRequest.create();
-
-        mLocationRequest.setInterval(this.updateIntervalMilliseconds);
-        mLocationRequest.setFastestInterval(this.fastestUpdateIntervalMilliseconds);
-        mLocationRequest.setPriority(this.locationAccuracy);
-        mLocationRequest.setSmallestDisplacement(this.distanceFilter);
-    }
-
-    /**
-     * Uses a
-     * {@link com.google.android.gms.location.LocationSettingsRequest.Builder} to
-     * build a {@link com.google.android.gms.location.LocationSettingsRequest} that
-     * is used for checking if a device has the needed location settings.
-     */
-    private void buildLocationSettingsRequest() {
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
-        builder.addLocationRequest(mLocationRequest);
-        mLocationSettingsRequest = builder.build();
     }
 
     /**
@@ -359,14 +312,8 @@ public class FlutterLocation
      * Checks whether location services is enabled.
      */
     public boolean checkServiceEnabled() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return locationManager.isLocationEnabled();
-        }
-
         boolean gps_enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        boolean network_enabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
-        return gps_enabled || network_enabled;
+        return gps_enabled;
     }
 
     public void requestService(final Result requestServiceResult) {
@@ -385,33 +332,9 @@ public class FlutterLocation
         }
 
         this.requestServiceResult = requestServiceResult;
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest).addOnFailureListener(activity,
-                e -> {
-                    if (e instanceof ResolvableApiException) {
-                        ResolvableApiException rae = (ResolvableApiException) e;
-                        int statusCode = rae.getStatusCode();
-                        switch (statusCode) {
-                            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
-                                try {
-                                    // Show the dialog by calling startResolutionForResult(), and check the
-                                    // result in onActivityResult().
-                                    rae.startResolutionForResult(activity, GPS_ENABLE_REQUEST);
-                                } catch (IntentSender.SendIntentException sie) {
-                                    requestServiceResult.error("SERVICE_STATUS_ERROR", "Could not resolve location request",
-                                            null);
-                                }
-                                break;
-                            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                                requestServiceResult.error("SERVICE_STATUS_DISABLED",
-                                        "Failed to get location. Location services disabled", null);
-                                break;
-                        }
-                    } else {
-                        // This should not happen according to Android documentation but it has been
-                        // observed on some phones.
-                        requestServiceResult.error("SERVICE_STATUS_ERROR", "Unexpected error type received", null);
-                    }
-                });
+
+        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+        this.activity.startActivityForResult(intent, GPS_ENABLE_REQUEST);
     }
 
     public void startRequestingLocation() {
@@ -419,44 +342,29 @@ public class FlutterLocation
             result.error("MISSING_ACTIVITY", "You should not requestLocation activation outside of an activity.", null);
             throw new ActivityNotFoundException();
         }
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-                .addOnSuccessListener(activity, locationSettingsResponse -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        locationManager.addNmeaListener(mMessageListener, null);
-                    }
 
-                    if (mFusedLocationClient != null) {
-                        mFusedLocationClient
-                                .requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
-                    }
-                }).addOnFailureListener(activity, e -> {
-                    if (e instanceof ResolvableApiException) {
-                        ResolvableApiException rae = (ResolvableApiException) e;
-                        int statusCode = rae.getStatusCode();
-                        if (statusCode == LocationSettingsStatusCodes.RESOLUTION_REQUIRED) {
-                            try {
-                                // Show the dialog by calling startResolutionForResult(), and check the
-                                // result in onActivityResult().
-                                rae.startResolutionForResult(activity, REQUEST_CHECK_SETTINGS);
-                            } catch (IntentSender.SendIntentException sie) {
-                                Log.i(TAG, "PendingIntent unable to execute request.");
-                            }
-                        }
-                    } else {
-                        ApiException ae = (ApiException) e;
-                        int statusCode = ae.getStatusCode();
-                        if (statusCode == LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE) {// This error code happens during AirPlane mode.
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                locationManager.addNmeaListener(mMessageListener, null);
-                            }
-                            mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback,
-                                    Looper.myLooper());
-                        } else {// This should not happen according to Android documentation but it has been
-                            // observed on some phones.
-                            sendError("UNEXPECTED_ERROR", e.getMessage(), null);
-                        }
-                    }
-                });
+        if (this.checkServiceEnabled()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                locationManager.addNmeaListener(mMessageListener, null);
+            }
+
+            if (locationManager != null) {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                        this.updateIntervalMilliseconds,
+                        this.distanceFilter,
+                        mLocationListener,
+                        Looper.myLooper());
+            }
+        } else {
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            this.activity.startActivityForResult(intent, REQUEST_CHECK_SETTINGS);
+        }
     }
 
+    public void cancelUpdates() {
+        if (locationManager != null) {
+            locationManager.removeUpdates(mLocationListener);
+        }
+        events = null;
+    }
 }
