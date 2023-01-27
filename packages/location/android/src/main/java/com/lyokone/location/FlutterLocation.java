@@ -3,10 +3,10 @@ package com.lyokone.location;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -16,29 +16,16 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.Settings;
-import android.util.Log;
-import android.util.SparseArray;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 
-import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.common.api.ResolvableApiException;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
-import com.google.android.gms.location.SettingsClient;
+import java.util.HashMap;
 
 import io.flutter.plugin.common.EventChannel.EventSink;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
-
-import java.util.HashMap;
 
 public class FlutterLocation
         implements PluginRegistry.RequestPermissionsResultListener, PluginRegistry.ActivityResultListener {
@@ -348,8 +335,19 @@ public class FlutterLocation
 
         this.requestServiceResult = requestServiceResult;
 
-        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-        this.activity.startActivityForResult(intent, GPS_ENABLE_REQUEST);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this.activity);
+        builder.setMessage("Your precise location is needed to record your activity.")
+                .setTitle("Location services disabled");
+        builder.setPositiveButton("Go to Settings", (dialog, id) -> {
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            FlutterLocation.this.activity.startActivityForResult(intent, GPS_ENABLE_REQUEST);
+        });
+        builder.setNegativeButton(android.R.string.cancel, (dialog, id) -> {
+            // User cancelled the dialog
+            requestServiceResult.error("SERVICE_STATUS_ERROR", "Location service status couldn't be determined", null);
+        });
+
+        builder.show();
     }
 
     public void startRequestingLocation() {
