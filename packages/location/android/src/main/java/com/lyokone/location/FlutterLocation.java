@@ -335,7 +335,7 @@ public class FlutterLocation
 
         this.requestServiceResult = requestServiceResult;
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this.activity);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this.activity, android.R.style.Theme_Material_Light_Dialog_Alert);
         builder.setMessage("Your precise location is needed to record your activity.")
                 .setTitle("Location services disabled");
         builder.setPositiveButton("Go to Settings", (dialog, id) -> {
