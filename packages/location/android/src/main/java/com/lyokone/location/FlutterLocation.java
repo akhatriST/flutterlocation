@@ -200,6 +200,21 @@ public class FlutterLocation
 
         mLocationListener = new LocationListener() {
             @Override
+            public void onProviderEnabled(@NonNull String provider) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(@NonNull String provider) {
+
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
+            }
+
+            @Override
             public void onLocationChanged(@NonNull Location location) {
                 HashMap<String, Object> loc = new HashMap<>();
                 loc.put("latitude", location.getLatitude());
