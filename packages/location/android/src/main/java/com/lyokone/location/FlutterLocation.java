@@ -26,8 +26,7 @@ import io.flutter.plugin.common.EventChannel.EventSink;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 
-public class FlutterLocation
-        implements PluginRegistry.RequestPermissionsResultListener, PluginRegistry.ActivityResultListener {
+public class FlutterLocation implements PluginRegistry.RequestPermissionsResultListener {
     private static final String TAG = "FlutterLocation";
 
     @Nullable
