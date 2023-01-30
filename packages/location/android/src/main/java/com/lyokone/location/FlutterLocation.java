@@ -3,7 +3,6 @@ package com.lyokone.location;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -35,12 +34,9 @@ public class FlutterLocation
     public Activity activity;
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
-    private static final int REQUEST_CHECK_SETTINGS = 0x1;
-
-    private static final int GPS_ENABLE_REQUEST = 0x1001;
 
     private LocationManager locationManager;
-    public LocationListener mLocationListener;
+    private LocationListener mLocationListener;
 
     @TargetApi(Build.VERSION_CODES.N)
     private OnNmeaMessageListener mMessageListener;
@@ -56,9 +52,6 @@ public class FlutterLocation
 
     // Store result until a permission check is resolved
     public Result result;
-
-    // Store the result for the requestService, used in ActivityResult
-    private Result requestServiceResult;
 
     // Store result until a location is getting resolved
     public Result getLocationResult;
@@ -76,12 +69,13 @@ public class FlutterLocation
             if (locationManager != null) {
                 locationManager.removeUpdates(mLocationListener);
             }
-            locationManager = null;
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && locationManager != null) {
                 locationManager.removeNmeaListener(mMessageListener);
                 mMessageListener = null;
             }
+
+            locationManager = null;
         }
     }
 
@@ -122,37 +116,6 @@ public class FlutterLocation
         }
         return false;
 
-    }
-
-    @Override
-    public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
-            case GPS_ENABLE_REQUEST:
-                if (this.requestServiceResult == null) {
-                    return false;
-                }
-                if (resultCode == Activity.RESULT_OK) {
-                    this.requestServiceResult.success(1);
-                } else {
-                    this.requestServiceResult.success(0);
-                }
-                this.requestServiceResult = null;
-                return true;
-            case REQUEST_CHECK_SETTINGS:
-                if (this.result == null) {
-                    return false;
-                }
-                if (resultCode == Activity.RESULT_OK) {
-                    startRequestingLocation();
-                    return true;
-                }
-
-                this.result.error("SERVICE_STATUS_DISABLED", "Failed to get location. Location services disabled", null);
-                this.result = null;
-                return true;
-            default:
-                return false;
-        }
     }
 
     public void changeSettings(Integer newLocationAccuracy, Long updateIntervalMilliseconds,
@@ -333,21 +296,8 @@ public class FlutterLocation
             return;
         }
 
-        this.requestServiceResult = requestServiceResult;
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this.activity, android.R.style.Theme_Material_Light_Dialog_Alert);
-        builder.setMessage("Your precise location is needed to record your activity.")
-                .setTitle("Location services disabled");
-        builder.setPositiveButton("Go to Settings", (dialog, id) -> {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            FlutterLocation.this.activity.startActivityForResult(intent, GPS_ENABLE_REQUEST);
-        });
-        builder.setNegativeButton(android.R.string.cancel, (dialog, id) -> {
-            // User cancelled the dialog
-            requestServiceResult.error("SERVICE_STATUS_ERROR", "Location service status couldn't be determined", null);
-        });
-
-        builder.show();
+        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+        this.activity.startActivity(intent);
     }
 
     public void startRequestingLocation() {
@@ -369,8 +319,7 @@ public class FlutterLocation
                         Looper.myLooper());
             }
         } else {
-            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            this.activity.startActivityForResult(intent, REQUEST_CHECK_SETTINGS);
+            result.error("SERVICE_STATUS_ERROR", "Location service is disabled", null);
         }
     }
 
