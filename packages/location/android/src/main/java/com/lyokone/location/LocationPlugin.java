@@ -98,7 +98,6 @@ public class LocationPlugin implements FlutterPlugin, ActivityAware {
 
         locationService.setActivity(activityBinding.getActivity());
 
-        activityBinding.addActivityResultListener(locationService.getLocationActivityResultListener());
         activityBinding.addRequestPermissionsResultListener(locationService.getLocationRequestPermissionsResultListener());
         activityBinding.addRequestPermissionsResultListener(locationService.getServiceRequestPermissionsResultListener());
 
@@ -116,7 +115,6 @@ public class LocationPlugin implements FlutterPlugin, ActivityAware {
 
         activityBinding.removeRequestPermissionsResultListener(locationService.getServiceRequestPermissionsResultListener());
         activityBinding.removeRequestPermissionsResultListener(locationService.getLocationRequestPermissionsResultListener());
-        activityBinding.removeActivityResultListener(locationService.getLocationActivityResultListener());
 
         locationService.setActivity(null);
 

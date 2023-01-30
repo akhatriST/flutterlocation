@@ -158,9 +158,6 @@ class FlutterLocationService : Service(), PluginRegistry.RequestPermissionsResul
     // Store result until a permission check is resolved
     var result: MethodChannel.Result? = null
 
-    val locationActivityResultListener: PluginRegistry.ActivityResultListener?
-        get() = location
-
     val locationRequestPermissionsResultListener: PluginRegistry.RequestPermissionsResultListener?
         get() = location
 
